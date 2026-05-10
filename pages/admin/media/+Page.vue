@@ -35,6 +35,7 @@
           :uploading="uploading"
           :upload-progress="uploadProgress"
           :upload-error="uploadError"
+          :status-text="uploadStatusText"
           @upload="handleUpload"
           @clear-error="uploadError = ''"
         />
@@ -151,6 +152,7 @@ const loading = ref(false);
 const uploading = ref(false);
 const uploadProgress = ref(0);
 const uploadError = ref("");
+const uploadStatusText = ref("");
 const previewItem = ref<MediaItem | null>(null);
 const showS3Config = ref(false);
 const savingConfig = ref(false);
@@ -208,7 +210,61 @@ function goToPage(page: number) {
   refreshMediaList();
 }
 
-async function handleUpload(file: File) {
+/**
+ * 判断文件是否可以转换为 WebP
+ */
+function isConvertibleImage(file: File): boolean {
+  const convertibleTypes = ["image/jpeg", "image/png", "image/bmp"];
+  return convertibleTypes.includes(file.type);
+}
+
+/**
+ * 使用浏览器 Canvas API 将图片转换为 WebP 格式
+ */
+async function convertToWebP(file: File, quality: number = 0.7): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("无法创建 Canvas 上下文"));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("WebP 转换失败"));
+            return;
+          }
+          const webpName = file.name.replace(/\.[^.]+$/, ".webp");
+          resolve(new File([blob], webpName, { type: "image/webp" }));
+        },
+        "image/webp",
+        quality,
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片加载失败"));
+    };
+
+    img.src = url;
+  });
+}
+
+async function handleUpload(file: File, compress: boolean) {
   if (!s3Config.value) return;
 
   uploading.value = true;
@@ -216,8 +272,23 @@ async function handleUpload(file: File) {
   uploadError.value = "";
 
   try {
+    let uploadFile = file;
+
+    // 如果启用压缩且为可转换的图片格式，先转为 WebP
+    if (compress && isConvertibleImage(file)) {
+      uploadStatusText.value = "正在压缩为 WebP...";
+      uploadProgress.value = 0;
+      try {
+        uploadFile = await convertToWebP(file);
+      } catch (err) {
+        console.warn("WebP 压缩失败，使用原始文件上传:", err);
+        // 压缩失败时降级使用原始文件
+      }
+    }
+
+    uploadStatusText.value = "正在上传...";
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", uploadFile);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/media/upload");
@@ -245,7 +316,14 @@ async function handleUpload(file: File) {
       xhr.send(formData);
     });
 
-    showToast("文件上传成功");
+    const originalSize = file.size;
+    const uploadedSize = uploadFile.size;
+    if (compress && isConvertibleImage(file) && uploadedSize < originalSize) {
+      const saved = Math.round((1 - uploadedSize / originalSize) * 100);
+      showToast(`文件上传成功 (WebP 压缩节省 ${saved}%)`);
+    } else {
+      showToast("文件上传成功");
+    }
     // Add to list
     mediaList.value.items.unshift(response.data);
     mediaList.value.total += 1;
@@ -254,6 +332,7 @@ async function handleUpload(file: File) {
   } finally {
     uploading.value = false;
     uploadProgress.value = 0;
+    uploadStatusText.value = "";
   }
 }
 

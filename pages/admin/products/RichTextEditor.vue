@@ -232,6 +232,7 @@
 
   <!-- 文件选择弹窗 -->
   <FilePickerModal
+    v-if="showFilePicker"
     :show="showFilePicker"
     @close="showFilePicker = false"
     @select="handleFileSelect"

@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { onGetMediaList } from "../pages/admin/media/getMediaList.telefunc";
 import type { MediaItem } from "../modules/media/types";
 
@@ -183,7 +183,12 @@ watch(
   }
 );
 
-// 监听弹窗显示状态，当显示时加载文件
+// 组件挂载时加载文件（配合 v-if 使用，每次打开都是新实例）
+onMounted(() => {
+  refreshFiles();
+});
+
+// 监听弹窗显示状态，当显示时加载文件（无 v-if 时使用）
 watch(
   () => props.show,
   (show) => {
@@ -191,7 +196,7 @@ watch(
       currentPage.value = 1;
       refreshFiles();
     }
-  }
+  },
 );
 
 async function refreshFiles() {

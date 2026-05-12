@@ -55,6 +55,24 @@ export async function createOrder(input: {
   }
 
   const quantity = Math.max(product.minBuy, Math.min(product.maxBuy, Math.floor(input.quantity)));
+
+  if (product.deliveryType === "CARD_AUTO") {
+    const availableCards = await prisma.card.count({
+      where: {
+        productId: product.id,
+        status: "UNUSED",
+      },
+    });
+
+    if (availableCards < quantity) {
+      throw conflictError("商品库存不足，请减少购买数量或选择其他商品", "PRODUCT_STOCK_NOT_ENOUGH");
+    }
+  }
+
+  if (product.deliveryType === "FIXED_CARD" && !product.fixedDeliveryContent?.trim()) {
+    throw conflictError("商品固定发货内容未配置，暂不可购买", "PRODUCT_FIXED_CONTENT_MISSING");
+  }
+
   const orderNo = generateOrderNo();
   const queryToken = generateQueryToken();
   let paymentChannel: string | null = null;
@@ -86,6 +104,7 @@ export async function createOrder(input: {
     amount: order.amount,
     paymentProvider: order.paymentProvider,
     paymentChannel: order.paymentChannel,
+    paymentStatus: order.paymentStatus,
     ...(await createPaymentForOrder(order.orderNo, prisma)),
   };
 }
@@ -306,6 +325,7 @@ export async function getAdminOrderById(id: number, prisma?: PrismaClient) {
     orderNo: order.orderNo,
     queryToken: order.queryToken,
     productName: order.productNameSnapshot,
+    productDeliveryType: order.product.deliveryType,
     amount: order.amount,
     quantity: order.quantity,
     paymentProvider: order.paymentProvider,

@@ -121,7 +121,7 @@
             <!-- 底部画师/版权说明文字 -->
             <div class="mt-3 text-center">
               <div
-                v-if="product.stockMode === 'FINITE' && product.availableStock >= 0 && product.availableStock < 10"
+                v-if="product.deliveryType === 'CARD_AUTO' && product.availableStock >= 0 && product.availableStock < 10"
                 class="absolute left-5 text-sm font-bold tracking-wide px-2 py-1 rounded-full shadow-lg border"
                 :class="product.availableStock === 0 ? 'bg-gray-800/90 text-gray-200 border-gray-600' : 'bg-amber-500/90 text-white border-amber-400 animate-pulse'"
               >

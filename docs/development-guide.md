@@ -5,6 +5,7 @@
 ## 项目架构概览
 
 ### 技术栈
+
 - **前端框架**: Vue 3 + Vike（文件路由 + SSR）
 - **服务端**: Hono（路由与中间件）
 - **运行时**: Cloudflare Workers
@@ -16,6 +17,7 @@
 - **数据变更**: Telefunc（前后端同构RPC）
 
 ### 核心约束
+
 1. **Cloudflare Workers环境限制**:
    - 禁止依赖`node:fs`、`node:path`等Node.js原生模块
    - 使用Web Crypto API（`crypto.subtle`）处理签名，避免第三方加密库
@@ -26,27 +28,47 @@
    - 开发环境使用本地D1模拟器，生产环境使用远程D1
    - 禁止使用`prisma migrate dev`，必须使用特定迁移工作流
 
+### 项目结构
+
+```
+edgeKey/
+├── pages/           # Vike页面路由
+├── components/      # Vue组件
+├── lib/             # 核心库（logger、error、http-client、utils）
+├── modules/         # 业务模块（payment、email、order）
+├── server/          # 服务端（Hono、中间件）
+├── prisma/          # 数据库模型和迁移
+├── assets/          # 静态资源
+└── docs/            # 文档
+```
+
+**核心库文件**:
+- `lib/logger.ts`: 日志模块（自动注入请求上下文、错误序列化）
+- `lib/app-error.ts`: 错误处理模块（AppError类、错误工厂函数）
+- `lib/http-client.ts`: HTTP 客户端（统一请求封装，支持超时、重试）
+- `lib/request-context.ts`: 请求上下文管理（AsyncLocalStorage）
+
+---
+
 ## 开发流程规范
 
 ### 1. 环境准备
+
 ```bash
-# 安装依赖（推荐使用Bun）
-bun install
-# 生成Prisma客户端（必须）
-bun run db:generate
-# 初始化本地数据库
-bun run db:migrations:local
-bun run db:seed
-# 启动开发服务器
-bun run dev
+bun install              # 安装依赖
+bun run db:generate      # 生成Prisma客户端
+bun run db:migrations:local  # 初始化本地数据库
+bun run db:seed          # 初始化种子数据
+bun run dev              # 启动开发服务器
 ```
 
 ### 2. 数据库变更流程
+
 **重要**: 修改数据库表结构时必须遵循以下流程：
 
 #### 步骤1: 修改Schema并生成迁移SQL
+
 ```bash
-# 修改 prisma/schema.prisma 后，使用prisma migrate diff生成SQL
 bunx prisma migrate diff \
   --from-migrations prisma/migrations \
   --to-schema prisma/schema.prisma \
@@ -54,35 +76,33 @@ bunx prisma migrate diff \
 ```
 
 #### 步骤2: 同步到本地开发环境
+
 ```bash
 bun run db:migrations:local
 ```
 
 #### 步骤3: 部署前同步到生产环境
+
 ```bash
 bun run db:migrations:remote
 ```
 
-**禁止操作**:
-- ❌ 使用`prisma migrate dev`
-- ❌ 反复覆盖初始化迁移文件`0001_init.sql`
-- ❌ 假设`bun dev`使用的是`prisma/db.sqlite`
-
 ### 3. 代码提交与部署
+
 ```bash
-# 构建项目
-bun run build
-# 本地预览构建结果
-bun run preview
-# 部署到Cloudflare Workers
-bun run deploy
-# 或等效命令
-bun run up
+bun run build    # 构建项目
+bun run preview  # 本地预览构建结果
+bun run deploy   # 部署到Cloudflare Workers
+# 或
+bun run up       # 构建并部署
 ```
+
+---
 
 ## 代码规范
 
-### 1. 文件组织
+### 文件组织
+
 - **页面文件**: `pages/`目录，遵循Vike文件路由约定
 - **组件**: `components/`目录，通用组件
 - **业务逻辑**: `lib/`目录
@@ -91,86 +111,59 @@ bun run up
 - **数据库**: `prisma/`目录
 - **静态资源**: `assets/`目录
 
-### 2. 命名规范
+### 命名规范
+
 - **Vue组件**: PascalCase（如`AppButton.vue`）
 - **TypeScript文件**: camelCase（如`order-utils.ts`）
 - **数据库模型**: PascalCase（如`Admin`、`Order`）
 - **数据库字段**: camelCase（如`createdAt`、`paymentStatus`）
 
-### 3. 组件开发规范
+### TypeScript 类型引用规范
+
+所有类型引用**必须在文件顶部使用 `import type` 导入**，禁止在变量声明、函数参数、泛型等位置使用内联 `import()` 写法。
+
+```typescript
+// bad：禁止内联引用
+function handle(data: import("./types").SomeType) { ... }
+// good：顶部统一导入
+import type { SomeType } from "./types";
+function handle(data: SomeType) { ... }
+```
+
+### 组件开发规范
+
+**优先使用全局组件**：开发新功能前，先查看 `docs/components.md` 中是否已有可复用的组件。优先使用项目提供的全局组件，没有的才自己开发。
+
+常用全局组件：
+- `AppButton`: 统一按钮，支持 loading、variant、href 等
+- `SecretInput`: 密码/密钥输入框，支持显示/隐藏
+- `StatusTag`: 状态标签
+- `ConfirmDialog`: 确认对话框
+- `DataTable`: 数据表格
+- `FilePickerModal`: 文件选择弹窗
+
+**开发新组件时**：
 - 使用`<script setup>`语法
 - Props定义必须包含类型和默认值
 - 事件使用`emit`函数触发
 - 样式优先使用Tailwind CSS类，必要时使用daisyUI组件
+- 如果是通用组件，应放在 `components/` 目录并更新 `docs/components.md`
 
-### 4. Telefunc使用规范
-- Telefunc函数放在对应页面目录下，以`.telefunc.ts`结尾
-- 函数命名: `on[Action]`（如`onCreateOrder`、`onUpdateProduct`）
-- 返回类型必须明确声明
-
-### 5. 日志规范
-使用项目内置的`logger`模块：
-```typescript
-import { logger } from '@/lib/logger';
-
-// 信息日志
-logger.info('操作成功', { userId: 123, action: 'create_order' });
-// 警告日志
-logger.warn('库存不足', { productId: 456, stock: 2 });
-// 错误日志
-logger.error('支付失败', error, { orderId: 'ORD001' });
-// 创建子日志记录器（带默认上下文）
-const orderLogger = logger.child({ module: 'order', service: 'create' });
-orderLogger.info('订单创建开始', { orderNo: 'ORD001' });
-```
-
-**日志级别使用原则**:
-- `info`: 业务流程关键节点、重要操作记录
-- `warn`: 可恢复的异常、资源不足、配置问题
-- `error`: 不可恢复的错误、系统异常
-
-**Cloudflare Workers限制**:
-- `console.debug`不会出现在Cloudflare Dashboard中
-- 统一使用`info`、`warn`、`error`三个级别
-
-**日志上下文自动注入**:
-- 请求上下文（requestId、method、path、cfRay）自动注入
-- 错误对象自动序列化（包含name、message、stack、code、statusCode、details）
-- 支持AppError和普通Error的序列化
-
-**日志格式示例**:
-```json
-{
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "level": "error",
-  "requestId": "abc123",
-  "method": "POST",
-  "path": "/api/orders",
-  "cfRay": "xyz789",
-  "message": "支付失败",
-  "error": {
-    "name": "AppError",
-    "message": "支付网关返回错误",
-    "stack": "...",
-    "code": "PAYMENT_GATEWAY_ERROR",
-    "statusCode": 400,
-    "details": { "provider": "bepusdt", "orderId": "ORD001" }
-  },
-  "module": "payment",
-  "service": "verify"
-}
-```
+---
 
 ## 架构设计规范
 
 ### 1. 中间件使用
+
 - **请求上下文**: 通过`createRequestContext`和`runWithRequestContext`管理
 - **数据库注入**: 通过`prismaMiddleware`注入Prisma实例
 - **认证**: 通过`authjsSessionMiddleware`处理会话
 - **API路由**: 独立的Hono子应用，优先于页面路由
 
 ### 2. 错误处理
+
 使用项目内置的错误处理机制：
+
 ```typescript
 import { AppError, toAppError, badRequestError, notFoundError, conflictError, unauthorizedError } from '@/lib/app-error';
 
@@ -180,14 +173,7 @@ throw badRequestError('购买数量不合法', 'ORDER_QUANTITY_INVALID');
 throw conflictError('数据已存在，请检查是否重复', 'UNIQUE_CONSTRAINT');
 throw unauthorizedError('请先登录管理员账号');
 
-// 或使用通用AppError
-throw new AppError('自定义错误消息', {
-  code: 'CUSTOM_ERROR',
-  statusCode: 400,
-  details: { field: 'value' }
-});
-
-// 转换未知错误（自动处理Prisma错误、Telefunc错误等）
+// 转换未知错误
 try {
   // 业务逻辑
 } catch (error) {
@@ -195,12 +181,6 @@ try {
   logger.error('操作失败', appError);
   throw appError;
 }
-
-// 断言条件
-assertCondition(order != null, notFoundError('订单不存在'));
-
-// 获取错误消息（兼容字符串、Error、AppError）
-const message = getErrorMessage(error, '未知错误');
 ```
 
 **错误工厂函数**:
@@ -213,220 +193,126 @@ const message = getErrorMessage(error, '未知错误');
 - `externalServiceError()`: 502 - 外部服务错误
 - `internalServerError()`: 500 - 服务器内部错误
 
-**错误转换规则**:
-- Prisma P2002错误 → 冲突错误（唯一约束冲突）
-- Telefunc Abort错误 → 自动提取错误信息
-- "Unauthorized"错误 → 未授权错误
-- 其他错误 → 内部服务器错误
+### 3. HTTP 客户端
 
-**错误响应格式**:
+项目提供统一的 HTTP 请求封装，支持超时、重试、错误处理：
+
 ```typescript
-// toErrorResponsePayload() 返回标准格式
-{
-  message: string;  // 用户友好的错误消息（expose为false时返回通用消息）
-  code?: string;    // 错误代码
-  statusCode: number; // HTTP状态码
-}
+import { httpRequest, httpPost } from '@/lib/http-client';
+
+// GET 请求
+const { ok, status, data } = await httpRequest('https://api.example.com/data', {
+  headers: { Authorization: 'Bearer token' },
+  timeoutMs: 10000,
+  retries: 2,
+});
+
+// POST 请求
+const { ok, status, data } = await httpPost('https://api.example.com/send', {
+  to: 'user@example.com',
+  subject: 'Hello',
+}, {
+  headers: { 'api-key': 'xxx' },
+  timeoutMs: 15000,
+});
 ```
 
-### 3. 实用工具函数
-项目提供多个实用工具函数：
+**参数说明**:
+- `timeoutMs`: 请求超时时间（默认 15000ms）
+- `retries`: 重试次数（默认 0）
+- `retryDelayMs`: 重试间隔（默认 1000ms）
+- `headers`: 自定义请求头（自动包含 Content-Type 和 User-Agent）
+
+### 4. 日志规范
+
+使用项目内置的`logger`模块：
+
 ```typescript
-import { formatMoney, parseMoney } from '@/lib/utils/money';
-import { getOrderStatusLabel, getOrderStatusType } from '@/lib/utils/order-status';
-import { formatDate, formatRelativeTime } from '@/lib/utils/time';
-import { generateOrderNo, generateQueryToken } from '@/lib/utils/order';
-import { hashPassword, verifyPassword } from '@/lib/utils/crypto';
-import { detectDeviceType } from '@/lib/utils/device';
+import { logger } from '@/lib/logger';
 
-// 金额处理（单位：分）
-const formatted = formatMoney(1000); // '10.00'
-const cents = parseMoney('10.00'); // 1000
-
-// 订单状态标签
-const label = getOrderStatusLabel('PAID'); // '已支付'
-const type = getOrderStatusType('PAID'); // 'success'
-
-// 时间格式化
-const dateStr = formatDate(new Date()); // '2024-01-01'
-const relative = formatRelativeTime(new Date()); // '刚刚'
-
-// 订单号生成
-const orderNo = generateOrderNo(); // 'ORD20240101001'
-const queryToken = generateQueryToken(); // 32位随机字符串
-
-// 密码处理（使用bcrypt）
-const hash = await hashPassword('password123');
-const isValid = await verifyPassword('password123', hash);
-
-// 设备检测
-const device = detectDeviceType(request); // 'mobile' | 'desktop'
+logger.info('操作成功', { userId: 123, action: 'create_order' });
+logger.warn('库存不足', { productId: 456, stock: 2 });
+logger.error('支付失败', error, { orderId: 'ORD001' });
 ```
 
-### 4. 常量和类型定义
-项目定义的常量和类型：
-```typescript
-// 常量定义
-import { PAYMENT_PROVIDERS } from '@/lib/constants/payment';
-import { ORDER_QUERY_TOKEN_LENGTH } from '@/lib/constants/order';
-import { PRODUCT_STATUS, ORDER_STATUS } from '@/lib/constants/product';
+**日志级别使用原则**:
+- `info`: 业务流程关键节点、重要操作记录
+- `warn`: 可恢复的异常、资源不足、配置问题
+- `error`: 不可恢复的错误、系统异常
 
-// 类型定义
-import type { Order, OrderStatus, PaymentStatus } from '@/lib/types/order';
-import type { Product, ProductStatus } from '@/lib/types/product';
-import type { SiteSetting } from '@/lib/types/site';
-import type { CommonResponse, PaginatedResponse } from '@/lib/types/common';
-```
+---
 
-**数据库枚举类型**:
-- `AdminStatus`: ACTIVE, DISABLED
-- `CategoryStatus`: ACTIVE, DISABLED
-- `ProductStatus`: DRAFT, ACTIVE, INACTIVE
-- `ProductDeliveryType`: CARD_AUTO, MANUAL
-- `ProductStockMode`: FINITE, UNLIMITED
-- `CardStatus`: UNUSED, LOCKED, SOLD, DISABLED
-- `ContactType`: EMAIL, QQ, TELEGRAM, OTHER
-- `OrderStatus`: PENDING, PAID, DELIVERED, CLOSED, FAILED
-- `PaymentStatus`: UNPAID, PAID, FAILED
-- `DeliveryStatus`: NOT_DELIVERED, DELIVERED, FAILED
-- `EmailChannel`: API, SMTP, CLOUDFLARE
-- `EmailScene`: TEST, ORDER_PAID, DELIVERY_SUCCESS, DELIVERY_FAILED
+## Telefunc 使用规范
 
-### 5. 重要项目文件
-以下是开发时需要了解的关键文件：
-
-**核心配置文件**:
-- `package.json`: 项目依赖和脚本命令
-- `vite.config.ts`: Vite构建配置（包含Vike、Vue、Tailwind、Telefunc插件）
-- `wrangler.jsonc`: Cloudflare Workers部署配置（包含D1数据库绑定）
-- `prisma/schema.prisma`: 数据库模型定义
-
-**服务端入口**:
-- `server/entry.ts`: 服务端主入口（Hono应用、中间件链）
-- `server/authjs-handler.ts`: Auth.js认证处理器
-- `server/prisma-middleware.ts`: Prisma D1注入中间件
-- `server/telefunc-handler.ts`: Telefunc RPC处理器
-
-**核心库文件**:
-- `lib/logger.ts`: 日志模块（自动注入请求上下文、错误序列化）
-- `lib/app-error.ts`: 错误处理模块（AppError类、错误工厂函数）
-- `lib/request-context.ts`: 请求上下文管理（AsyncLocalStorage）
-
-**业务模块**:
-- `modules/payment/`: 支付相关（适配器、服务、路由）
-- `modules/email/`: 邮件相关（模板、发送、日志）
-- `modules/order/`: 订单管理
-- `modules/inventory/`: 库存管理
-
-**前端页面**:
-- `pages/`: Vike文件路由目录
-- `components/`: 通用Vue组件
-- `assets/`: 静态资源
-
-### 6. Telefunc使用模式
-Telefunc提供前后端同构的数据变更RPC：
-```typescript
-// pages/admin/orders/createOrder.telefunc.ts
-import { getContext } from 'telefunc';
-import type { PrismaClient } from '../../generated/prisma/client';
-import { badRequestError } from '../../lib/app-error';
-import { logger } from '../../lib/logger';
-import { validateOrderInput } from '../../lib/validators/order';
-
-export async function onCreateOrder(input: {
-  productId: number;
-  quantity: number;
-  contactValue: string;
-}) {
-  // 获取上下文（自动包含Prisma实例）
-  const { prisma } = getContext() as { prisma: PrismaClient };
-  
-  // 验证输入
-  const validated = validateOrderInput(input);
-  
-  // 业务逻辑
-  const order = await prisma.order.create({
-    data: {
-      orderNo: generateOrderNo(),
-      productId: input.productId,
-      quantity: validated.quantity,
-      contactValue: validated.contactValue,
-      // ... 其他字段
-    }
-  });
-  
-  logger.info('订单创建成功', { orderNo: order.orderNo });
-  return { orderNo: order.orderNo };
-}
-```
-
-**Telefunc约定**:
-- 函数放在页面目录下，以`.telefunc.ts`结尾
-- 命名规范: `on[Action]`（如`onCreateOrder`、`onUpdateProduct`）
+- Telefunc函数放在对应页面目录下，以`.telefunc.ts`结尾
+- 函数命名: `on[Action]`（如`onCreateOrder`、`onUpdateProduct`）
 - 通过`getContext()`获取请求上下文（包含prisma实例）
 - 返回值自动序列化为JSON
 - 错误会自动转换为Telefunc Abort格式
 
-**本地开发与生产环境差异**:
-- 本地开发: 使用Wrangler D1模拟器
-- 生产环境: 使用Cloudflare远程D1
-- 数据库绑定: `env.DB`在两个环境中都可用
-- Prisma配置: 运行时使用`env.DB`，CLI使用`DATABASE_URL`
+```typescript
+import { getContext } from 'telefunc';
+import type { PrismaClient } from '../../generated/prisma/client';
 
-
-## 文档维护
-
-### 1. 更新README.md
-重大功能变更后，更新README.md中的功能特性和项目截图。
-
-### 2. 更新组件文档
-新增或修改公共组件时，更新`docs/components.md`。
-
-### 3. 更新支付网关文档
-新增支付网关时，更新`docs/payment-gateway-guide.md`。
-
-## 代码审查要点
-
-### 1. 安全性
-- 密码是否使用bcrypt加密
-- API密钥是否硬编码
-- SQL注入防护（Prisma自动处理）
-
-### 2. 性能
-- 数据库查询是否优化
-- 是否有N+1查询问题
-- 静态资源是否优化
-
-### 3. 可维护性
-- 代码是否有适当注释
-- 是否遵循项目架构规范
-- 是否有重复代码
-
-## 参考资源
-
-1. **项目文档**:
-   - `README.md`: 项目概述和快速开始
-   - `docs/components.md`: 组件使用指南
-   - `docs/payment-gateway-guide.md`: 支付网关开发指南
-
-2. **官方文档**:
-   - [Vike](https://vike.dev/): 文件路由框架
-   - [Vue 3](https://vuejs.org/): 前端框架
-   - [Hono](https://hono.dev/): 服务端框架
-   - [Prisma](https://www.prisma.io/): ORM框架
-   - [Cloudflare Workers](https://developers.cloudflare.com/workers/): 运行时环境
-
-3. **工具文档**:
-   - [Wrangler](https://developers.cloudflare.com/workers/wrangler/): Cloudflare CLI
-   - [Bun](https://bun.sh/): JavaScript运行时和包管理器
+export async function onCreateOrder(input: { productId: number; quantity: number }) {
+  const { prisma } = getContext() as { prisma: PrismaClient };
+  // 业务逻辑
+  return { orderNo: 'ORD001' };
+}
+```
 
 ---
 
-**重要提醒**: 在进行任何修改前，请确保理解项目架构和约束条件。对于不确定的操作，建议先在开发环境测试，确认无误后再部署到生产环境。
+## 数据库开发工作流
 
-## 快速参考
+### D1 事务限制与解决方案
 
-### 常用命令
+> [!WARNING]
+> **Cloudflare D1 不完全支持 Prisma 的交互式事务** (`prisma.$transaction(async (tx) => {...})`)
+
+**本项目的解决方案：补偿性事务（Compensating Transaction）**
+
+```typescript
+// 1. 先执行主操作
+const order = await createOrderRecord(prisma, {...});
+// 2. 尝试执行关联操作
+try {
+  const result = await createPaymentForOrder(order.orderNo, prisma);
+  return result;
+} catch (error) {
+  // 3. 如果失败，执行补偿操作（删除已创建的记录）
+  await prisma.order.delete({ where: { id: order.id } })
+    .catch(e => logger.error("Compensating delete failed:", e));
+  throw error;
+}
+```
+
+### 迁移文件限制说明
+
+- **`prisma/migrations/` 中已存在的迁移文件视为历史记录，禁止修改、重命名或删除。**
+- **数据库变更只能通过新增迁移文件完成，例如 `0002_*.sql`、`0003_*.sql`。**
+- **提交前必须保证 `schema.prisma` 与迁移文件的职责一致，避免同一字段在多个迁移里重复定义。**
+
+### 当前运行方式
+
+- `bun dev` 运行在 Cloudflare 风格的本地开发环境中，Prisma 会通过 `env.DB` 连接到**本地 D1 模拟器**
+- `bun run up` 部署后，Prisma 会通过同一个 `env.DB` 绑定连接到**远程 D1**
+- `.env` 中的 `DATABASE_URL` 仅用于 Prisma CLI / 配置层，不参与当前应用运行时的数据库连接
+
+---
+
+## 绝对不要做的操作
+
+1. **不要**假设 `bun dev` 使用的是 `prisma/db.sqlite`；当前它实际使用的是本地 D1 模拟器
+2. **不要**使用 `prisma migrate dev`，这会偏离当前 D1 迁移工作流
+3. **不要**反复覆盖 `prisma/migrations/0001_init.sql`；初始化迁移和后续增量迁移应分开维护
+4. **不要**信任 Prisma 生成的迁移 SQL，必须手动核查脚本，重点识别并拦截非预期的 **DROP TABLE** 或**全量重建**逻辑
+5. **不要**使用`node:fs`、`node:path`等Node.js原生模块
+
+---
+
+## 常用命令
+
 ```bash
 # 开发
 bun install                    # 安装依赖
@@ -448,51 +334,34 @@ bun run up                     # 构建并部署
 bun run types                  # 生成Wrangler类型
 ```
 
-### 常见模式
-```typescript
-// 1. 日志记录
-import { logger } from '@/lib/logger';
-logger.info('操作成功', { key: 'value' });
-logger.error('操作失败', error);
+---
 
-// 2. 错误处理
-import { notFoundError, badRequestError } from '@/lib/app-error';
-throw notFoundError('资源不存在');
+## 日志排查
 
-// 3. 输入验证
-import { validateOrderInput } from '@/lib/validators/order';
-const data = validateOrderInput(input);
+当邮件发送异常或支付回调出现问题时，可在 Cloudflare Dashboard 查看 Workers 运行日志：
 
-// 4. Telefunc函数
-import { getContext } from 'telefunc';
-const { prisma } = getContext() as { prisma: PrismaClient };
+> 实时线上环境日志: `bunx wrangler tail --format pretty`
 
-// 5. 数据库查询
-const orders = await prisma.order.findMany({
-  where: { status: 'PAID' },
-  include: { product: true },
-  skip: 0,
-  take: 20
-});
-```
+1. 进入 [dash.cloudflare.com](https://dash.cloudflare.com)
+2. 左侧菜单 → **Workers & Pages** → 点击 **edgekey**
+3. 顶部 tab → **Observability**
+4. 在搜索框输入关键词过滤日志，例如：
+   - `email.send.failed` — 邮件发送失败
+   - `payment.notify.route_exception` — 支付回调路由异常
+   - `payment.notify.diagnostic` — 支付回调校验异常诊断
 
-### 项目结构速查
-```
-edgeKey/
-├── pages/           # Vike页面路由
-├── components/      # Vue组件
-├── lib/             # 核心库（logger、error、utils）
-├── modules/         # 业务模块（payment、email、order）
-├── server/          # 服务端（Hono、中间件）
-├── prisma/          # 数据库模型和迁移
-├── assets/          # 静态资源
-└── docs/            # 文档
-```
+---
 
-### 关键约束速查
-- ❌ 禁止使用`node:fs`、`node:path`等Node.js原生模块
-- ❌ 禁止使用`prisma migrate dev`
-- ✅ 使用Web Crypto API处理签名
-- ✅ 使用项目内置的logger模块
-- ✅ 遵循数据库迁移工作流
-- ✅ 生产环境必须配置AUTH_SECRET
+## 参考资源
+
+**项目文档**:
+- `README.md`: 项目概述和快速开始
+- `docs/components.md`: 组件使用指南
+- `docs/payment-gateway-guide.md`: 支付网关开发指南
+
+**官方文档**:
+- [Vike](https://vike.dev/): 文件路由框架
+- [Vue 3](https://vuejs.org/): 前端框架
+- [Hono](https://hono.dev/): 服务端框架
+- [Prisma](https://www.prisma.io/): ORM框架
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/): 运行时环境

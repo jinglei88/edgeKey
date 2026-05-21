@@ -9,6 +9,7 @@ import { createPaymentForOrder, handlePaymentNotify } from "../payment/service";
 import { closeOrderRecord, createOrderRecord, findOrderById, findOrderWithProduct, listOrderRecords } from "./repository";
 import { generateOrderNo, generateQueryToken } from "./number";
 import { logger } from "../../lib/logger";
+import { validateDiscountCode, calculateDiscount, applyDiscountCode } from "../discount/service";
 
 function getOrderContext() {
   return getContext<{ prisma: PrismaClient }>();
@@ -45,6 +46,7 @@ export async function createOrder(input: {
   contactType: "EMAIL" | "QQ" | "TELEGRAM" | "OTHER";
   contactValue?: string;
   buyerNote?: string;
+  discountCode?: string;
 }) {
   const { prisma } = getOrderContext();
   const { contactValue } = validateOrderInput(input);
@@ -82,7 +84,20 @@ export async function createOrder(input: {
     paymentChannel = input.paymentChannel ?? "alipay_h5";
   }
 
-  // 先创建订单
+  const originalAmount = product.price * quantity;
+  let discountAmount = 0;
+  let discountCodeId: number | null = null;
+  let discountCodeStr: string | null = null;
+
+  if (input.discountCode?.trim()) {
+    const discountCode = await validateDiscountCode(input.discountCode, product.id, originalAmount, prisma);
+    discountAmount = calculateDiscount(discountCode.type, discountCode.value, originalAmount);
+    discountCodeId = discountCode.id;
+    discountCodeStr = discountCode.code;
+  }
+
+  const amount = originalAmount - discountAmount;
+
   const order = await createOrderRecord(prisma, {
     orderNo,
     queryToken,
@@ -90,35 +105,44 @@ export async function createOrder(input: {
     productNameSnapshot: product.name,
     unitPrice: product.price,
     quantity,
-    amount: product.price * quantity,
+    amount,
     contactType: input.contactType,
     contactValue,
     buyerNote: input.buyerNote?.trim() || null,
     paymentProvider: input.paymentProvider,
     paymentChannel,
+    discountCodeId,
+    discountCodeStr,
+    originalAmount: discountAmount > 0 ? originalAmount : null,
+    discountAmount: discountAmount > 0 ? discountAmount : null,
   });
 
-  // 尝试创建支付，如果失败则删除订单
   try {
     const paymentResult = await createPaymentForOrder(order.orderNo, prisma);
+
+    // 支付创建成功后再递增折扣码使用次数
+    if (discountCodeId) {
+      await applyDiscountCode(discountCodeId, prisma);
+    }
 
     return {
       id: order.id,
       orderNo: order.orderNo,
       queryToken: order.queryToken,
       amount: order.amount,
+      originalAmount: order.originalAmount,
+      discountAmount: order.discountAmount,
+      discountCodeStr: order.discountCodeStr,
       paymentProvider: order.paymentProvider,
       paymentChannel: order.paymentChannel,
       paymentStatus: order.paymentStatus,
       ...paymentResult,
     };
   } catch (error) {
-    // 支付创建失败，删除订单以保持数据一致性
     await prisma.order.delete({
       where: { id: order.id },
     }).catch(e => logger.error("Failed to delete order after payment creation failed:", e));
     
-    // 重新抛出原始错误
     throw error;
   }
 }
@@ -180,6 +204,9 @@ export async function getOrderForQuery(
     productName: order.productNameSnapshot,
     quantity: order.quantity,
     amount: order.amount,
+    originalAmount: order.originalAmount,
+    discountAmount: order.discountAmount,
+    discountCodeStr: order.discountCodeStr,
     paymentProvider: order.paymentProvider,
     productSlug: order.product.slug,
     createdAt: order.createdAt.toISOString(),
@@ -240,6 +267,9 @@ export async function getAdminOrders(prisma?: PrismaClient) {
     orderNo: order.orderNo,
     productName: order.productNameSnapshot,
     amount: order.amount,
+    originalAmount: order.originalAmount,
+    discountAmount: order.discountAmount,
+    discountCodeStr: order.discountCodeStr,
     quantity: order.quantity,
     paymentProvider: order.paymentProvider,
     status: order.status,
@@ -341,6 +371,9 @@ export async function getAdminOrderById(id: number, prisma?: PrismaClient) {
     productName: order.productNameSnapshot,
     productDeliveryType: order.product.deliveryType,
     amount: order.amount,
+    originalAmount: order.originalAmount,
+    discountAmount: order.discountAmount,
+    discountCodeStr: order.discountCodeStr,
     quantity: order.quantity,
     paymentProvider: order.paymentProvider,
     paymentChannel: order.paymentChannel,

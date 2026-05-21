@@ -25,11 +25,11 @@
             <div class="text-sm text-base-content/60">当前价格</div>
             <div class="text-3xl font-bold text-primary">{{ formatCents(product.price) }}</div>
           </div>
-          <dev class="flex">
+          <div class="flex">
               <!-- <div class="text-sm text-base-content/70">限购 {{ product.minBuy }} - {{ product.maxBuy }} 件</div> -->
               <div class="text-sm text-base-content/70">限购 {{ product.maxBuy }} 件，</div>
               <div class="text-sm text-base-content/70">发货方式：{{ getDeliveryTypeLabel(product.deliveryType) }}</div>
-          </dev>
+          </div>
           <div class="divider my-0"></div>
 
           <label class="flex flex-col gap-1.5">
@@ -42,6 +42,28 @@
             <span class="label-text font-medium">购买数量</span>
             <input v-model.number="form.quantity" type="number" :min="product.minBuy" :max="product.maxBuy" class="input input-bordered w-full" />
           </label>
+
+          <label class="flex flex-col gap-1.5">
+            <span class="label-text font-medium">折扣码</span>
+            <div class="flex gap-2">
+              <input 
+                v-model="form.discountCode" 
+                type="text" 
+                class="input input-bordered flex-1" 
+                placeholder="输入折扣码（可选）"
+                :disabled="discountPreview.loading"
+              />
+              <button 
+                class="btn btn-outline btn-sm" 
+                :disabled="!form.discountCode.trim() || discountPreview.loading"
+                @click="handlePreviewDiscount"
+              >
+                {{ discountPreview.loading ? '验证中...' : '验证' }}
+              </button>
+            </div>
+          </label>
+          <p v-if="discountPreview.error" class="-mt-2 text-xs text-error">{{ discountPreview.error }}</p>
+          <p v-if="discountPreview.valid" class="-mt-2 text-xs text-orange-400">折扣码有效，优惠 {{ formatCents(discountPreview.discount) }}</p>
 
           <label class="flex flex-col gap-1.5">
             <span class="label-text font-medium">备注</span>
@@ -85,7 +107,21 @@
             </div>
           </div>
 
-
+          <div v-if="discountPreview.valid" class="rounded-box bg-base-200 p-4 space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-base-content/70">商品总价</span>
+              <span>{{ formatCents(product.price * form.quantity) }}</span>
+            </div>
+            <div class="flex justify-between text-sm text-orange-400">
+              <span>折扣优惠</span>
+              <span>-{{ formatCents(discountPreview.discount) }}</span>
+            </div>
+            <div class="divider my-0"></div>
+            <div class="flex justify-between font-bold">
+              <span>实付金额</span>
+              <span class="text-primary">{{ formatCents(discountPreview.finalAmount) }}</span>
+            </div>
+          </div>
 
           <p v-if="product.deliveryType === 'CARD_AUTO' && product.availableStock >= 0 && product.availableStock < 10" class="text-sm" :class="product.availableStock === 0 ? 'text-error' : 'text-warning'">
             {{ product.availableStock === 0 ? '商品都卖光了，看看其他商品' : `库存紧张，仅剩 ${product.availableStock} 件` }}
@@ -112,6 +148,7 @@ import { useData } from "vike-vue/useData";
 import { isEmail } from "../../../lib/validators/email";
 import { formatCents } from "../../../lib/utils/money";
 import { onCreateOrder } from "./createOrder.telefunc";
+import { onPreviewDiscount } from "./previewDiscount.telefunc";
 import type { PaymentProvider } from "../../../modules/payment/types";
 import { isMobile } from "../../../lib/utils/device";
 import { onMounted, watch } from "vue";
@@ -128,10 +165,19 @@ const epayChannels = [
   { value: "wxpay", label: "微信", icon: "wechat" },
 ] as const;
 
+const discountPreview = reactive({
+  loading: false,
+  valid: false,
+  error: "",
+  discount: 0,
+  finalAmount: 0,
+});
+
 const form = reactive({
   quantity: product?.minBuy ?? 1,
   contactValue: "",
   buyerNote: "",
+  discountCode: "",
   paymentProvider: paymentMethods[0]?.provider ?? "",
   paymentChannel: getDefaultPaymentChannel(paymentMethods[0]?.provider ?? ""),
 });
@@ -157,7 +203,37 @@ watch(() => form.paymentProvider, (provider) => {
   form.paymentChannel = getDefaultPaymentChannel(provider);
 });
 
+watch(() => form.discountCode, () => {
+  discountPreview.valid = false;
+  discountPreview.error = "";
+  discountPreview.discount = 0;
+  discountPreview.finalAmount = 0;
+});
+
 const descriptionHtml = formatDescriptionHtml(product?.description || "");
+
+async function handlePreviewDiscount() {
+  if (!product || !form.discountCode.trim()) return;
+
+  discountPreview.loading = true;
+  discountPreview.error = "";
+  discountPreview.valid = false;
+
+  try {
+    const result = await onPreviewDiscount(form.discountCode, product.id, product.price * form.quantity);
+    if (result.valid) {
+      discountPreview.valid = true;
+      discountPreview.discount = result.discount;
+      discountPreview.finalAmount = result.finalAmount;
+    } else {
+      discountPreview.error = result.error;
+    }
+  } catch (error) {
+    discountPreview.error = "验证失败，请重试";
+  } finally {
+    discountPreview.loading = false;
+  }
+}
 
 async function handleCreateOrder() {
   if (!product || submitting.value) return;
@@ -190,6 +266,7 @@ async function handleCreateOrder() {
       contactType: "EMAIL",
       contactValue: contactEmail,
       buyerNote: form.buyerNote,
+      discountCode: form.discountCode.trim() || undefined,
     });
 
     saveLocalOrder({

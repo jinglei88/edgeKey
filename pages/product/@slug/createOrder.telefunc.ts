@@ -9,6 +9,7 @@ export async function onCreateOrder(input: {
   contactType: "EMAIL";
   contactValue: string;
   buyerNote?: string;
+  discountCode?: string;
 }) {
   return createOrder(input);
 }

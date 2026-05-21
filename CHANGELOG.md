@@ -1,5 +1,21 @@
 # Change Log
 
+## v1.4.0 (2026-05-21)
+
+### Features
+
+- **discount:** 新增商品折扣码功能，支持为商品配置折扣优惠 ([0a25d08](https://github.com/34892002/edgeKey/commit/0a25d08))
+- **email:** 邮件模版变量展示，支持在邮件内容中使用变量 ([8079e8f](https://github.com/34892002/edgeKey/commit/8079e8f))
+- **ui:** 后台菜单重构为集中配置管理，支持根据当前路径自动展开/高亮 ([b79bd34](https://github.com/34892002/edgeKey/commit/b79bd34))
+- **ui:** 面包屑导航优化，自动关联菜单层级 ([b79bd34](https://github.com/34892002/edgeKey/commit/b79bd34))
+- **security:** 安全设置页展示 Turnstile 配置状态，实时检测是否已启用
+
+### Bug Fixes
+
+- **media:** 修复 FilePickerModal 组件过早加载上传图片的问题 ([4d69df2](https://github.com/34892002/edgeKey/commit/4d69df2))
+- **email:** 修复发送邮件备注缺失的问题 ([8079e8f](https://github.com/34892002/edgeKey/commit/8079e8f))
+- **product:** 修复商品详情页显示问题 ([2769c6d](https://github.com/34892002/edgeKey/commit/2769c6d))
+
 ## v1.3.6 (2026-05-17)
 
 ### Improvements

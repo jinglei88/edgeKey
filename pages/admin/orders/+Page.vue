@@ -43,6 +43,7 @@
         @update:page="fetchPage"
       >
         <template #amount="{ value }">{{ formatCents(value) }}</template>
+        <template #discountCodeStr="{ value }">{{ value || '-' }}</template>
         <template #paymentProvider="{ value }">{{ getPaymentProviderLabel(value) }}</template>
         <template #status="{ row }">
           <StatusTag :type="getOrderStatusType(row.status)">{{ getOrderStatusLabel(row.status) }}</StatusTag>
@@ -81,6 +82,7 @@ const columns = [
   { key: "orderNo", label: "订单号" },
   { key: "productName", label: "商品" },
   { key: "amount", label: "金额" },
+  { key: "discountCodeStr", label: "折扣码" },
   { key: "paymentProvider", label: "支付方式" },
   { key: "status", label: "状态" },
   { key: "createdAt", label: "时间" },

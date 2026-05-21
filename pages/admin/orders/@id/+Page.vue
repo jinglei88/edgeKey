@@ -18,7 +18,10 @@
           <div class="space-y-1 text-sm">
             <div>商品：{{ order.productName }}</div>
             <div>数量：{{ order.quantity }}</div>
-            <div>金额：{{ formatCents(order.amount) }}</div>
+            <div>商品总价：{{ formatCents(order.originalAmount || order.amount) }}</div>
+            <div v-if="order.discountCodeStr">折扣码：{{ order.discountCodeStr }}</div>
+            <div v-if="order.discountAmount" class="text-orange-400">折扣优惠：-{{ formatCents(order.discountAmount) }}</div>
+            <div class="font-bold">实付金额：{{ formatCents(order.amount) }}</div>
             <div>支付方式：{{ getPaymentProviderLabel(order.paymentProvider) }}</div>
           </div>
           <div class="space-y-1 text-sm">

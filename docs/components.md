@@ -157,6 +157,190 @@ await confirmRef.value?.alert({ title: "提示", message: "请先选择商品" }
 ```
 
 
+## RemoteSelect
+
+远程搜索下拉框组件，支持本地搜索和远程搜索，可单选或多选。基于 daisyUI 样式实现。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `any \| any[]` | — | 选中的值（v-model） |
+| `items` | `SelectItem[]` | `[]` | 选项列表 |
+| `labelKey` | `string` | `"label"` | 显示文本的字段名 |
+| `valueKey` | `string` | `"value"` | 值的字段名 |
+| `placeholder` | `string` | `"请选择..."` | 占位文本 |
+| `disabled` | `boolean` | `false` | 是否禁用 |
+| `loading` | `boolean` | `false` | 是否显示加载状态 |
+| `clearable` | `boolean` | `true` | 是否可清空 |
+| `multiple` | `boolean` | `false` | 是否多选 |
+| `searchable` | `boolean` | `true` | 是否可搜索 |
+| `remoteSearch` | `boolean` | `false` | 是否远程搜索（触发 search 事件） |
+| `emptyText` | `string` | `"暂无数据"` | 无数据时显示的文本 |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `update:modelValue` | `value: any \| any[]` | 选中值变化时触发 |
+| `search` | `query: string` | 远程搜索时触发（带 300ms 防抖） |
+| `focus` | — | 输入框获得焦点时触发 |
+| `change` | `value: any \| any[]` | 选中值变化时触发（同 update:modelValue） |
+
+### SelectItem 类型
+
+```typescript
+interface SelectItem {
+  [key: string]: any;  // 至少包含 labelKey 和 valueKey 指定的字段
+}
+```
+
+### 基本用法（单选）
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import RemoteSelect from "../../../components/RemoteSelect.vue";
+
+const selected = ref(null);
+const items = [
+  { value: 1, label: "选项一" },
+  { value: 2, label: "选项二" },
+  { value: 3, label: "选项三" },
+];
+</script>
+
+<template>
+  <RemoteSelect
+    v-model="selected"
+    :items="items"
+    placeholder="请选择..."
+  />
+</template>
+```
+
+### 多选模式
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import RemoteSelect from "../../../components/RemoteSelect.vue";
+
+const selectedIds = ref<number[]>([]);
+const products = [
+  { id: 1, name: "商品A" },
+  { id: 2, name: "商品B" },
+  { id: 3, name: "商品C" },
+];
+</script>
+
+<template>
+  <RemoteSelect
+    v-model="selectedIds"
+    :items="products"
+    label-key="name"
+    value-key="id"
+    :multiple="true"
+    placeholder="搜索或选择商品..."
+  />
+  <p>已选择 {{ selectedIds.length }} 个商品</p>
+</template>
+```
+
+### 远程搜索
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import RemoteSelect from "../../../components/RemoteSelect.vue";
+
+const selected = ref(null);
+const items = ref([]);
+const loading = ref(false);
+
+async function handleSearch(query: string) {
+  if (!query) {
+    items.value = [];
+    return;
+  }
+  loading.value = true;
+  try {
+    const result = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    items.value = await result.json();
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+
+<template>
+  <RemoteSelect
+    v-model="selected"
+    :items="items"
+    :loading="loading"
+    :remote-search="true"
+    placeholder="输入关键词搜索..."
+    @search="handleSearch"
+  />
+</template>
+```
+
+### 自定义字段名
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import RemoteSelect from "../../../components/RemoteSelect.vue";
+
+const selected = ref(null);
+const users = [
+  { userId: 1, userName: "张三", email: "zhang@example.com" },
+  { userId: 2, userName: "李四", email: "li@example.com" },
+];
+</script>
+
+<template>
+  <RemoteSelect
+    v-model="selected"
+    :items="users"
+    label-key="userName"
+    value-key="userId"
+    placeholder="选择用户..."
+  />
+</template>
+```
+
+### 禁用和只读
+
+```vue
+<template>
+  <!-- 禁用状态 -->
+  <RemoteSelect
+    v-model="selected"
+    :items="items"
+    :disabled="true"
+  />
+</template>
+```
+
+### 使用场景
+
+| 场景 | 推荐配置 |
+|------|----------|
+| 商品选择 | `:multiple="true"`, `:searchable="true"` |
+| 用户选择 | `:remote-search="true"`, `@search="fetchUsers"` |
+| 分类选择 | `:searchable="true"`, `:clearable="true"` |
+| 支付方式 | `:searchable="false"` |
+
+### 样式说明
+
+- 基于 daisyUI `input` 和 `dropdown` 样式
+- 下拉框最大高度 `max-h-60`（15rem），超出可滚动
+- 多选模式显示复选框
+- 选中项高亮显示（`bg-primary/10`）
+- 支持加载状态动画
+
+
 ## SecretInput
 
 带显示/隐藏切换的密钥输入框，用于密码、API Secret 等敏感字段。

@@ -32,9 +32,10 @@
           <div class="breadcrumbs text-sm text-base-content/60 mt-0.5">
             <ul>
               <li><a href="/admin">Home</a></li>
-              <li v-if="breadcrumbs?.length > 0"><a :href="breadcrumbs[0].href">{{ breadcrumbs[0].name }}</a>
+              <li v-for="(crumb, index) in breadcrumbs" :key="index">
+                <a v-if="crumb.href" :href="crumb.href">{{ crumb.name }}</a>
+                <span v-else>{{ crumb.name }}</span>
               </li>
-              <li v-if="breadcrumbs?.length > 1">{{ breadcrumbs[1].name }}</li>
             </ul>
           </div>
         </div>
@@ -95,17 +96,30 @@
         <!-- Navigation -->
         <div class="p-4 flex-1 overflow-y-auto">
           <ul class="menu menu-md w-full gap-1 p-0">
-            <li><a href="/admin" :class="{'active': currentPath === '/admin'}">仪表盘</a></li>
-            <li><a href="/admin/categories" :class="{'active': currentPath?.startsWith('/admin/categories')}">分类管理</a></li>
-            <li><a href="/admin/products" :class="{'active': currentPath?.startsWith('/admin/products')}">商品管理</a></li>
-            <li><a href="/admin/cards" :class="{'active': currentPath?.startsWith('/admin/cards')}">卡密管理</a></li>
-            <li><a href="/admin/orders" :class="{'active': currentPath?.startsWith('/admin/orders')}">订单管理</a></li>
-            <li><a href="/admin/payments" :class="{'active': currentPath?.startsWith('/admin/payments')}">支付配置</a></li>
-            <li><a href="/admin/email" :class="{'active': currentPath?.startsWith('/admin/email')}">邮件管理</a></li>
-            <li><a href="/admin/media" :class="{'active': currentPath?.startsWith('/admin/media')}">文件管理</a></li>
-            <li><a href="/admin/settings" :class="{'active': currentPath?.startsWith('/admin/settings')}">站点设置</a></li>
-            <!-- <li><a href="/admin/security" :class="{'active': currentPath?.startsWith('/admin/security')}">安全配置</a></li> -->
-            <li><a href="/admin/profile" :class="{'active': currentPath?.startsWith('/admin/profile')}">个人资料</a></li>
+            <li>
+              <a href="/admin" :class="{'active': currentPath === '/admin'}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                仪表盘
+              </a>
+            </li>
+            
+            <li v-for="group in menuGroups" :key="group.name">
+              <details :open="isGroupOpen(group, currentPath)">
+                <summary>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="group.icon" />
+                  </svg>
+                  {{ group.name }}
+                </summary>
+                <ul>
+                  <li v-for="item in group.items" :key="item.href">
+                    <a :href="item.href" :class="{'active': isItemActive(item, currentPath)}">{{ item.name }}</a>
+                  </li>
+                </ul>
+              </details>
+            </li>
           </ul>
         </div>
 
@@ -134,6 +148,7 @@
 import { computed, onMounted, ref } from "vue";
 import AppButton from "../../components/AppButton.vue";
 import { usePageContext } from "vike-vue/usePageContext";
+import { menuGroups, getBreadcrumbs, isGroupOpen, isItemActive } from "./menu";
 
 import logoUrl from "../../assets/logo.svg";
 
@@ -207,34 +222,7 @@ const isAdminUser = computed(() => pageContext.session?.user?.role === "admin");
 const needsLogin = computed(() => !isLoginPage.value && !isAdminUser.value);
 const siteLogo = computed(() => pageContext.site?.logo || logoUrl);
 
-type Crumb = { name: string; href?: string };
-
-const BREADCRUMB_ROUTES: { pattern: string; crumbs: Crumb[] }[] = [
-  { pattern: "/admin/products/new",      crumbs: [{ name: "商品管理", href: "/admin/products" }, { name: "新建商品" }] },
-  { pattern: "/admin/products/:id/edit", crumbs: [{ name: "商品管理", href: "/admin/products" }, { name: "编辑商品" }] },
-  { pattern: "/admin/products",          crumbs: [{ name: "商品管理" }] },
-  { pattern: "/admin/orders/:id",        crumbs: [{ name: "订单管理", href: "/admin/orders" }, { name: "订单详情" }] },
-  { pattern: "/admin/orders",            crumbs: [{ name: "订单管理" }] },
-  { pattern: "/admin/categories",        crumbs: [{ name: "分类管理" }] },
-  { pattern: "/admin/cards",             crumbs: [{ name: "卡密管理" }] },
-  { pattern: "/admin/payments",          crumbs: [{ name: "支付配置" }] },
-  { pattern: "/admin/email",             crumbs: [{ name: "邮件管理" }] },
-  { pattern: "/admin/media",             crumbs: [{ name: "文件管理" }] },
-  { pattern: "/admin/settings",          crumbs: [{ name: "站点设置" }] },
-  { pattern: "/admin/security",          crumbs: [{ name: "安全配置" }] },
-  { pattern: "/admin/profile",           crumbs: [{ name: "个人资料" }] },
-];
-
-function matchRoute(pattern: string, path: string) {
-  const re = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "(/.*)?$");
-  return re.test(path);
-}
-
-const breadcrumbs = computed((): Crumb[] => {
-  const path = currentPath.value ?? "";
-  const route = BREADCRUMB_ROUTES.find(r => matchRoute(r.pattern, path));
-  return route ? route.crumbs : [];
-});
+const breadcrumbs = computed(() => getBreadcrumbs(currentPath.value));
 
 onMounted(() => {
   if (needsLogin.value) {

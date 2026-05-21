@@ -24,7 +24,19 @@
           <div class="space-y-2 text-sm">
             <div class="flex justify-between"><span>商品</span><span>{{ order.productName }}</span></div>
             <div class="flex justify-between"><span>数量</span><span>{{ order.quantity }}</span></div>
-            <div class="flex justify-between"><span>金额</span><span>{{ formatCents(order.amount) }}</span></div>
+            <div class="flex justify-between"><span>商品总价</span><span>{{ formatCents(order.originalAmount || order.amount) }}</span></div>
+            <div v-if="order.discountCodeStr" class="flex justify-between text-orange-400">
+              <span>折扣码</span>
+              <span>{{ order.discountCodeStr }}</span>
+            </div>
+            <div v-if="order.discountAmount" class="flex justify-between text-orange-400">
+              <span>折扣优惠</span>
+              <span>-{{ formatCents(order.discountAmount) }}</span>
+            </div>
+            <div class="flex justify-between font-bold">
+              <span>实付金额</span>
+              <span class="text-primary">{{ formatCents(order.amount) }}</span>
+            </div>
             <div class="flex justify-between"><span>支付方式</span><span>{{ getPaymentProviderLabel(order.paymentProvider) }}</span></div>
           </div>
           <div v-if="order.paymentStatus === 'UNPAID'" class="mt-4">

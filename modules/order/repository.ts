@@ -13,6 +13,7 @@ export function findOrderWithProduct(prisma: PrismaClient, orderNo: string) {
     include: {
       product: true,
       deliveries: true,
+      discountCode: true,
     },
   });
 }
@@ -23,6 +24,7 @@ export function listOrderRecords(prisma: PrismaClient) {
     include: {
       product: true,
       deliveries: true,
+      discountCode: true,
     },
   });
 }
@@ -35,6 +37,7 @@ export function findOrderById(prisma: PrismaClient, id: number) {
       deliveries: true,
       cards: true,
       paymentLogs: true,
+      discountCode: true,
     },
   });
 }
@@ -54,6 +57,10 @@ export function createOrderRecord(
     buyerNote?: string | null;
     paymentProvider: PaymentProvider;
     paymentChannel?: string | null;
+    discountCodeId?: number | null;
+    discountCodeStr?: string | null;
+    originalAmount?: number | null;
+    discountAmount?: number | null;
   },
 ) {
   return prisma.order.create({
@@ -70,6 +77,10 @@ export function createOrderRecord(
       buyerNote: input.buyerNote ?? null,
       paymentProvider: input.paymentProvider,
       paymentChannel: input.paymentChannel ?? null,
+      discountCodeId: input.discountCodeId ?? null,
+      discountCodeStr: input.discountCodeStr ?? null,
+      originalAmount: input.originalAmount ?? null,
+      discountAmount: input.discountAmount ?? null,
     },
   });
 }

@@ -390,3 +390,99 @@ model Media {
   @@index([uploadedAt])
   @@index([path])
 }
+
+// ========== License 网络验证模块 ==========
+
+enum LicenseProductStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum LicenseType {
+  TRIAL
+  DAY
+  MONTH
+  YEAR
+  PERMANENT
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+}
+
+enum LicenseActivationStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model LicenseProduct {
+  id            Int                 @id @default(autoincrement())
+  code          String              @unique
+  name          String
+  description   String?
+  status        LicenseProductStatus @default(ACTIVE)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  licenses      License[]
+  activations   LicenseActivation[]
+}
+
+model License {
+  id            Int             @id @default(autoincrement())
+  productId     Int
+  key           String          @unique
+  licenseType   LicenseType
+  durationSec   Int
+  maxDevices    Int             @default(1)
+  status        LicenseStatus   @default(ACTIVE)
+  activatedAt   DateTime?
+  expireAt      DateTime?
+  metadata      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  product       LicenseProduct  @relation(fields: [productId], references: [id])
+  activations   LicenseActivation[]
+  revocations   LicenseRevocation[]
+
+  @@index([productId])
+  @@index([productId, licenseType])
+  @@index([status])
+}
+
+model LicenseActivation {
+  id            Int                   @id @default(autoincrement())
+  licenseId     Int
+  productId     Int
+  deviceId      String
+  platform      String
+  domain        String?
+  fingerprint   String
+  activatedAt   DateTime              @default(now())
+  lastSeenAt    DateTime              @default(now())
+  status        LicenseActivationStatus @default(ACTIVE)
+
+  license       License               @relation(fields: [licenseId], references: [id])
+  product       LicenseProduct        @relation(fields: [productId], references: [id])
+
+  @@unique([productId, licenseId, deviceId])
+  @@index([licenseId])
+  @@index([productId, deviceId])
+  @@index([status])
+}
+
+model LicenseRevocation {
+  id            Int       @id @default(autoincrement())
+  licenseId     Int
+  reason        String
+  revokedAt     DateTime  @default(now())
+
+  license       License   @relation(fields: [licenseId], references: [id])
+
+  @@index([licenseId])
+}

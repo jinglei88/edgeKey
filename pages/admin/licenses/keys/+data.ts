@@ -1,5 +1,4 @@
 import type { PrismaClient } from "../../../../generated/prisma/client";
-import { listLicenseProducts, listLicenseKeys } from "../../../../modules/license/service";
 
 export type Data = ReturnType<typeof data>;
 
@@ -16,8 +15,13 @@ export async function data(pageContext: {
 
   const prisma = pageContext.prisma;
 
-  return {
-    products: await listLicenseProducts(prisma),
-    licenses: await listLicenseKeys(undefined, prisma),
-  };
+  const [products, licenses] = await Promise.all([
+    prisma.licenseProduct.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.license.findMany({
+      include: { product: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return { products, licenses };
 }

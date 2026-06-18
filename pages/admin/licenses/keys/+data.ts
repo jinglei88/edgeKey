@@ -14,8 +14,10 @@ export async function data(pageContext: {
     };
   }
 
+  const prisma = pageContext.prisma;
+
   return {
-    products: await listLicenseProducts(),
-    licenses: await listLicenseKeys(),
+    products: await listLicenseProducts(prisma),
+    licenses: await listLicenseKeys(undefined, prisma),
   };
 }

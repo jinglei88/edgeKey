@@ -13,7 +13,9 @@ export async function data(pageContext: {
     };
   }
 
+  const prisma = pageContext.prisma;
+
   return {
-    products: await listLicenseProducts(),
+    products: await listLicenseProducts(prisma),
   };
 }

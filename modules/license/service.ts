@@ -66,32 +66,33 @@ function getLeftSeconds(expireAt: Date | null): number | null {
   return Math.max(0, Math.floor(diff / 1000));
 }
 
-export async function createLicenseProduct(input: LicenseProductInput) {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+export async function createLicenseProduct(input: LicenseProductInput, prisma?: PrismaClient) {
+  const client = prisma ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
-  const existing = await findProductByCode(prisma, input.code);
+  const existing = await findProductByCode(client, input.code);
   if (existing) {
     throw conflictError("产品编码已存在", "PRODUCT_CODE_EXISTS");
   }
 
-  return createProduct(prisma, {
+  return createProduct(client, {
     code: input.code,
     name: input.name,
     description: input.description,
   });
 }
 
-export async function listLicenseProducts() {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
-  return listProducts(prisma);
+export async function listLicenseProducts(prisma?: PrismaClient) {
+  const client = prisma ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
+  return listProducts(client);
 }
 
 export async function updateLicenseProduct(
   id: number,
   input: { name?: string; description?: string; status?: LicenseProductStatus },
+  prisma?: PrismaClient,
 ) {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
-  return updateProduct(prisma, id, input);
+  const client = prisma ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
+  return updateProduct(client, id, input);
 }
 
 export async function generateLicenseKeys(input: LicenseGenerateInput) {
@@ -130,16 +131,16 @@ export async function listLicenseKeys(filters?: {
   productCode?: string;
   licenseType?: string;
   status?: string;
-}) {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+}, prisma?: PrismaClient) {
+  const client = prisma ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
   let productId: number | undefined;
   if (filters?.productCode) {
-    const product = await findProductByCode(prisma, filters.productCode);
+    const product = await findProductByCode(client, filters.productCode);
     if (product) productId = product.id;
   }
 
-  return listLicenses(prisma, {
+  return listLicenses(client, {
     productId,
     licenseType: filters?.licenseType as LicenseType | undefined,
     status: filters?.status as LicenseStatus | undefined,

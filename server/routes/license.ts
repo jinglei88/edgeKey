@@ -9,12 +9,16 @@ import {
 import { buildCanonicalString, buildVerifyCanonicalString, isTimestampValid, verifyHmacSha256 } from "../../modules/license/crypto";
 import { LICENSE_ERROR_CODES } from "../../modules/license/types";
 
-function getAuthSecret(): string {
-  return process.env.AUTH_SECRET || "";
-}
-
 function jsonError(code: number, message: string) {
   return { code, data: null, message };
+}
+
+async function getApiKeyByProductCode(prisma: any, productCode: string): Promise<string | null> {
+  const product = await prisma.licenseProduct.findUnique({
+    where: { code: productCode },
+    select: { apiKey: true },
+  });
+  return product?.apiKey || null;
 }
 
 export function registerLicenseRoutes(app: Hono) {
@@ -37,13 +41,13 @@ export function registerLicenseRoutes(app: Hono) {
       return c.json(jsonError(LICENSE_ERROR_CODES.REQUEST_EXPIRED, "请求已过期"));
     }
 
-    const canonical = buildCanonicalString(productCode, key, deviceId, timestamp, nonce);
-    const secret = getAuthSecret();
-    if (!secret) {
-      return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "服务端签名未配置"));
+    const apiKey = await getApiKeyByProductCode(prisma, productCode);
+    if (!apiKey) {
+      return c.json(jsonError(LICENSE_ERROR_CODES.PRODUCT_NOT_FOUND, "产品不存在"));
     }
 
-    const isValid = await verifyHmacSha256(secret, canonical, signature);
+    const canonical = buildCanonicalString(productCode, key, deviceId, timestamp, nonce);
+    const isValid = await verifyHmacSha256(apiKey, canonical, signature);
     if (!isValid) {
       return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "签名验证失败"));
     }
@@ -83,13 +87,13 @@ export function registerLicenseRoutes(app: Hono) {
       return c.json(jsonError(LICENSE_ERROR_CODES.REQUEST_EXPIRED, "请求已过期"));
     }
 
-    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
-    const secret = getAuthSecret();
-    if (!secret) {
-      return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "服务端签名未配置"));
+    const apiKey = await getApiKeyByProductCode(prisma, productCode);
+    if (!apiKey) {
+      return c.json(jsonError(LICENSE_ERROR_CODES.PRODUCT_NOT_FOUND, "产品不存在"));
     }
 
-    const isValid = await verifyHmacSha256(secret, canonical, signature);
+    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
+    const isValid = await verifyHmacSha256(apiKey, canonical, signature);
     if (!isValid) {
       return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "签名验证失败"));
     }
@@ -126,13 +130,13 @@ export function registerLicenseRoutes(app: Hono) {
       return c.json(jsonError(LICENSE_ERROR_CODES.REQUEST_EXPIRED, "请求已过期"));
     }
 
-    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
-    const secret = getAuthSecret();
-    if (!secret) {
-      return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "服务端签名未配置"));
+    const apiKey = await getApiKeyByProductCode(prisma, productCode);
+    if (!apiKey) {
+      return c.json(jsonError(LICENSE_ERROR_CODES.PRODUCT_NOT_FOUND, "产品不存在"));
     }
 
-    const isValid = await verifyHmacSha256(secret, canonical, signature);
+    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
+    const isValid = await verifyHmacSha256(apiKey, canonical, signature);
     if (!isValid) {
       return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "签名验证失败"));
     }
@@ -168,13 +172,13 @@ export function registerLicenseRoutes(app: Hono) {
       return c.json(jsonError(LICENSE_ERROR_CODES.REQUEST_EXPIRED, "请求已过期"));
     }
 
-    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
-    const secret = getAuthSecret();
-    if (!secret) {
-      return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "服务端签名未配置"));
+    const apiKey = await getApiKeyByProductCode(prisma, productCode);
+    if (!apiKey) {
+      return c.json(jsonError(LICENSE_ERROR_CODES.PRODUCT_NOT_FOUND, "产品不存在"));
     }
 
-    const isValid = await verifyHmacSha256(secret, canonical, signature);
+    const canonical = buildVerifyCanonicalString(productCode, licenseId, deviceId, timestamp, nonce);
+    const isValid = await verifyHmacSha256(apiKey, canonical, signature);
     if (!isValid) {
       return c.json(jsonError(LICENSE_ERROR_CODES.SIGNATURE_INVALID, "签名验证失败"));
     }

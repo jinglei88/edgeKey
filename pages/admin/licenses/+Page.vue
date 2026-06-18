@@ -31,31 +31,35 @@
         </section>
 
         <section>
-          <DataTable
-            :columns="columns"
-            :rows="productList"
-            :total="productList.length"
-            :page="1"
-            :page-size="productList.length || 1"
-            empty-text="当前还没有产品，先创建第一个。"
-          >
-            <template #code="{ row }">
-              <div class="font-mono text-sm">{{ row.code }}</div>
-            </template>
-            <template #status="{ row }">
-              <StatusTag :type="row.status === 'ACTIVE' ? 'success' : 'default'">
-                {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
-              </StatusTag>
-            </template>
-            <template #actions="{ row }">
-              <div class="flex gap-2">
-                <AppButton size="xs" variant="outline" @click="startEdit(row)">编辑</AppButton>
-                <AppButton size="xs" variant="outline" @click="handleToggle(row)">
-                  {{ row.status === 'ACTIVE' ? '停用' : '启用' }}
-                </AppButton>
+          <div class="space-y-3">
+            <div v-for="row in productList" :key="row.id" class="rounded-box border border-base-300 p-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="font-semibold">{{ row.name }}</div>
+                  <div class="text-sm text-base-content/60">编码: {{ row.code }}</div>
+                  <div v-if="row.description" class="text-sm text-base-content/60 mt-1">{{ row.description }}</div>
+                </div>
+                <div class="flex gap-2">
+                  <AppButton size="xs" variant="outline" @click="startEdit(row)">编辑</AppButton>
+                  <AppButton size="xs" variant="outline" @click="handleToggle(row)">
+                    {{ row.status === 'ACTIVE' ? '停用' : '启用' }}
+                  </AppButton>
+                </div>
               </div>
-            </template>
-          </DataTable>
+              <div class="mt-3 p-3 bg-base-200 rounded text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">API Key（客户端 SDK 使用）:</span>
+                  <AppButton size="xs" variant="ghost" @click="copyApiKey(row.apiKey)">
+                    {{ copiedId === row.id ? '已复制' : '复制' }}
+                  </AppButton>
+                </div>
+                <div class="font-mono text-xs mt-1 break-all">{{ row.apiKey }}</div>
+              </div>
+            </div>
+            <div v-if="!productList.length" class="text-center text-base-content/60 py-8">
+              当还没有产品，先创建第一个。
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -66,26 +70,16 @@
 import { normalizeTelefuncError } from "../../../lib/app-error";
 import { reactive, ref } from "vue";
 import AppButton from "../../../components/AppButton.vue";
-import DataTable from "../../../components/DataTable.vue";
-import StatusTag from "../../../components/StatusTag.vue";
 import { useData } from "vike-vue/useData";
 import { onSaveLicenseProduct, onToggleLicenseProduct } from "./saveLicenseProduct.telefunc";
 import type { Data } from "./+data";
 
 const { products } = useData<Data>();
 
-const columns = [
-  { key: "id", label: "ID" },
-  { key: "code", label: "编码" },
-  { key: "name", label: "名称" },
-  { key: "description", label: "描述" },
-  { key: "status", label: "状态" },
-  { key: "actions", label: "操作" },
-];
-
 const productList = ref([...products]);
 const saving = ref(false);
 const errorMessage = ref("");
+const copiedId = ref<number | null>(null);
 
 const form = reactive({
   id: undefined as number | undefined,
@@ -151,5 +145,17 @@ async function handleToggle(product: (typeof products)[number]) {
       status: result.status,
     };
   });
+}
+
+async function copyApiKey(apiKey: string) {
+  try {
+    await navigator.clipboard.writeText(apiKey);
+    copiedId.value = productList.value.find((item) => item.apiKey === apiKey)?.id || null;
+    setTimeout(() => {
+      copiedId.value = null;
+    }, 2000);
+  } catch {
+    alert("复制失败，请手动复制");
+  }
 }
 </script>

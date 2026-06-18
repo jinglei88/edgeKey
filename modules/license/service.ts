@@ -74,10 +74,13 @@ export async function createLicenseProduct(input: LicenseProductInput, prisma?: 
     throw conflictError("产品编码已存在，请使用编辑功能", "PRODUCT_CODE_EXISTS");
   }
 
+  const apiKey = generateApiKey();
+
   return createProduct(client, {
     code: input.code,
     name: input.name,
     description: input.description,
+    apiKey,
   });
 }
 
@@ -378,6 +381,15 @@ function generateKeySuffix(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let result = "";
   for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function generateApiKey(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "sk_";
+  for (let i = 0; i < 32; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;

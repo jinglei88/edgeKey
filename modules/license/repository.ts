@@ -14,13 +14,14 @@ export function listProducts(prisma: PrismaClient) {
 
 export function createProduct(
   prisma: PrismaClient,
-  input: { code: string; name: string; description?: string },
+  input: { code: string; name: string; description?: string; apiKey: string },
 ) {
   return prisma.licenseProduct.create({
     data: {
       code: input.code,
       name: input.name,
       description: input.description,
+      apiKey: input.apiKey,
     },
   });
 }

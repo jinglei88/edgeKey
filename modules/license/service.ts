@@ -71,7 +71,7 @@ export async function createLicenseProduct(input: LicenseProductInput, prisma?: 
 
   const existing = await findProductByCode(client, input.code);
   if (existing) {
-    throw conflictError("产品编码已存在", "PRODUCT_CODE_EXISTS");
+    throw conflictError("产品编码已存在，请使用编辑功能", "PRODUCT_CODE_EXISTS");
   }
 
   return createProduct(client, {

@@ -8,7 +8,7 @@ export async function onListLicenseProducts() {
 
 export async function onSaveLicenseProduct(input: {
   id?: number;
-  code: string;
+  code?: string;
   name: string;
   description?: string;
 }) {
@@ -19,6 +19,10 @@ export async function onSaveLicenseProduct(input: {
       name: input.name,
       description: input.description,
     });
+  }
+
+  if (!input.code) {
+    throw new Error("产品编码不能为空");
   }
 
   return createLicenseProduct({

@@ -48,6 +48,9 @@
             {{ getTypeLabel(row.licenseType) }}
           </StatusTag>
         </template>
+        <template #duration="{ row }">
+          <div class="text-sm">{{ getDurationLabel(row.durationSec) }}</div>
+        </template>
         <template #status="{ row }">
           <StatusTag :type="getStatusTagType(row.status)">
             {{ getStatusLabel(row.status) }}
@@ -95,6 +98,7 @@ const columns = [
   { key: "key", label: "Key" },
   { key: "productCode", label: "产品" },
   { key: "licenseType", label: "类型" },
+  { key: "duration", label: "时长" },
   { key: "status", label: "状态" },
   { key: "expireAt", label: "过期时间" },
   { key: "actions", label: "操作" },
@@ -159,6 +163,15 @@ function getExpireAtDisplay(row: any) {
   return "永久";
 }
 
+function getDurationLabel(durationSec: number) {
+  if (durationSec === 0) return "永久";
+  if (durationSec < 3600) return `${Math.floor(durationSec / 60)}分钟`;
+  if (durationSec < 86400) return `${Math.floor(durationSec / 3600)}小时`;
+  if (durationSec < 2592000) return `${Math.floor(durationSec / 86400)}天`;
+  if (durationSec < 31536000) return `${Math.floor(durationSec / 2592000)}月`;
+  return `${Math.floor(durationSec / 31536000)}年`;
+}
+
 async function handleQuery() {
   try {
     const result = await onQueryLicenseKeys({
@@ -198,14 +211,15 @@ async function handleRevoke(license: (typeof licenses)[number]) {
 }
 
 function handleExport() {
-  const headers = ["ID", "Key", "产品", "类型", "状态", "过期时间", "创建时间"];
+  const headers = ["ID", "Key", "产品", "类型", "时长", "状态", "过期时间", "创建时间"];
   const rows = licenseList.value.map((item) => [
     item.id,
     item.key,
     item.product?.code || "",
     item.licenseType,
+    getDurationLabel(item.durationSec),
     item.status,
-    item.expireAt ? new Date(item.expireAt).toLocaleString() : "永久",
+    getExpireAtDisplay(item),
     new Date(item.createdAt).toLocaleString(),
   ]);
 

@@ -15,13 +15,24 @@ export async function data(pageContext: {
 
   const prisma = pageContext.prisma;
 
-  const [products, licenses] = await Promise.all([
-    prisma.licenseProduct.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.license.findMany({
-      include: { product: true },
+  try {
+    const products = await prisma.licenseProduct.findMany({
       orderBy: { createdAt: "desc" },
-    }),
-  ]);
+    });
 
-  return { products, licenses };
+    const licenses = await prisma.license.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const licensesWithProduct = licenses.map((l) => ({
+      ...l,
+      product: productMap.get(l.productId) || null,
+    }));
+
+    return { products, licenses: licensesWithProduct };
+  } catch (error) {
+    console.error("Failed to load license data:", error);
+    return { products: [], licenses: [] };
+  }
 }

@@ -55,7 +55,7 @@
         </template>
         <template #expireAt="{ row }">
           <div class="text-sm">
-            {{ row.expireAt ? new Date(row.expireAt).toLocaleString() : '永久' }}
+            {{ getExpireAtDisplay(row) }}
           </div>
         </template>
         <template #actions="{ row }">
@@ -150,6 +150,13 @@ function getStatusTagType(status: string) {
     REVOKED: "danger",
   };
   return types[status] || "default";
+}
+
+function getExpireAtDisplay(row: any) {
+  if (!row.activatedAt) return "未激活";
+  if (row.licenseType === "PERMANENT") return "永久";
+  if (row.expireAt) return new Date(row.expireAt).toLocaleString();
+  return "永久";
 }
 
 async function handleQuery() {

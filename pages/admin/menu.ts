@@ -56,6 +56,7 @@ export const menuGroups: MenuGroup[] = [
       { name: "产品管理", href: "/admin/licenses" },
       { name: "发卡管理", href: "/admin/licenses/generate" },
       { name: "Key 管理", href: "/admin/licenses/keys" },
+      { name: "开发文档", href: "/admin/licenses/docs" },
     ],
   },
   {

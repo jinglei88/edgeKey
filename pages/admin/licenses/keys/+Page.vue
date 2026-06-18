@@ -49,7 +49,7 @@
           </StatusTag>
         </template>
         <template #duration="{ row }">
-          <div class="text-sm">{{ getDurationLabel(row.durationSec) }}</div>
+          <div class="text-sm">{{ getDurationLabel(row.durationSec ?? 0) }}</div>
         </template>
         <template #status="{ row }">
           <StatusTag :type="getStatusTagType(row.status)">
@@ -157,19 +157,20 @@ function getStatusTagType(status: string) {
 }
 
 function getExpireAtDisplay(row: any) {
-  if (!row.activatedAt) return "未激活";
+  if (!row?.activatedAt) return "未激活";
   if (row.licenseType === "PERMANENT") return "永久";
   if (row.expireAt) return new Date(row.expireAt).toLocaleString();
   return "永久";
 }
 
-function getDurationLabel(durationSec: number) {
-  if (durationSec === 0) return "永久";
-  if (durationSec < 3600) return `${Math.floor(durationSec / 60)}分钟`;
-  if (durationSec < 86400) return `${Math.floor(durationSec / 3600)}小时`;
-  if (durationSec < 2592000) return `${Math.floor(durationSec / 86400)}天`;
-  if (durationSec < 31536000) return `${Math.floor(durationSec / 2592000)}月`;
-  return `${Math.floor(durationSec / 31536000)}年`;
+function getDurationLabel(durationSec: number | null | undefined) {
+  const sec = durationSec ?? 0;
+  if (sec === 0) return "永久";
+  if (sec < 3600) return `${Math.floor(sec / 60)}分钟`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}小时`;
+  if (sec < 2592000) return `${Math.floor(sec / 86400)}天`;
+  if (sec < 31536000) return `${Math.floor(sec / 2592000)}月`;
+  return `${Math.floor(sec / 31536000)}年`;
 }
 
 async function handleQuery() {

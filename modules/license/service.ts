@@ -152,8 +152,9 @@ export async function listLicenseKeys(filters?: {
 
 export async function activateLicense(
   input: LicenseActivateInput,
+  prismaParam?: PrismaClient,
 ): Promise<LicenseActivateResult> {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+  const prisma = prismaParam ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
   const product = await findProductByCode(prisma, input.productCode);
   if (!product) {
@@ -243,8 +244,9 @@ export async function activateLicense(
 
 export async function verifyLicense(
   input: LicenseVerifyInput,
+  prismaParam?: PrismaClient,
 ): Promise<LicenseVerifyResult> {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+  const prisma = prismaParam ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
   const product = await findProductByCode(prisma, input.productCode);
   if (!product) {
@@ -291,8 +293,9 @@ export async function verifyLicense(
 
 export async function heartbeatLicense(
   input: LicenseHeartbeatInput,
+  prismaParam?: PrismaClient,
 ): Promise<LicenseHeartbeatResult> {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+  const prisma = prismaParam ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
   const product = await findProductByCode(prisma, input.productCode);
   if (!product) {
@@ -320,8 +323,9 @@ export async function heartbeatLicense(
 
 export async function deactivateLicense(
   input: LicenseDeactivateInput,
+  prismaParam?: PrismaClient,
 ): Promise<LicenseDeactivateResult> {
-  const { prisma } = await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>());
+  const prisma = prismaParam ?? (await import("telefunc").then((m) => m.getContext<{ prisma: PrismaClient }>())).prisma;
 
   const product = await findProductByCode(prisma, input.productCode);
   if (!product) {

@@ -55,6 +55,7 @@ export const menuGroups: MenuGroup[] = [
     items: [
       { name: "产品管理", href: "/admin/licenses" },
       { name: "Key 管理", href: "/admin/licenses/keys" },
+      { name: "License 订单", href: "/admin/license-orders" },
       { name: "开发文档", href: "/admin/licenses/docs" },
     ],
   },

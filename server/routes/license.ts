@@ -63,7 +63,7 @@ export function registerLicenseRoutes(app: Hono) {
       timestamp,
       nonce,
       signature,
-    });
+    }, prisma);
 
     return c.json(result);
   });
@@ -106,7 +106,7 @@ export function registerLicenseRoutes(app: Hono) {
       timestamp,
       nonce,
       signature,
-    });
+    }, prisma);
 
     return c.json(result);
   });
@@ -148,7 +148,7 @@ export function registerLicenseRoutes(app: Hono) {
       timestamp,
       nonce,
       signature,
-    });
+    }, prisma);
 
     return c.json(result);
   });
@@ -191,7 +191,7 @@ export function registerLicenseRoutes(app: Hono) {
       timestamp,
       nonce,
       signature,
-    });
+    }, prisma);
 
     return c.json(result);
   });
